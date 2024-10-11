@@ -1,0 +1,163 @@
+<div>
+    <h1>Chat App</h1>
+    <!-- <div>
+        <form id="form-submit">
+            <label >Message</label>
+            <input type="text" id="name"></input>
+            <input type="submit"></input>
+        </form>
+    </div> -->
+    <script src="/socket.io/socket.io.js"></script>
+    <ul class="nameSpaces">
+        <img src="https://images.app.goo.gl/YXkFu9vB5K8HKXbU6" height="60px" width="60px" ns="/wiki"><span>Wikipedia</span></img>
+    </ul>
+    <div class="rooms">
+
+    </div>
+    <br/><br/><br/>
+    <div class="roomHeading"></div>
+    <br/><br/><br/>
+    <div>
+        <form id="form-submit">
+            <label >Message</label>
+            <input type="text" id="name"></input>
+            <input type="submit"></input>
+        </form>
+    </div>
+    </div>
+    
+    <script>
+        const socket = io('http://localhost:8001'); 
+        const adminSocket = io('http://localhost:8001/admin'); 
+        const nameSpaceArray = []; 
+        const nameSpaceAPIReloadedChange = []; 
+        const nameSpaceRooms = []; 
+        //console.log('SERVER CONNECTED |||')
+        socket.on('connect', () => {
+            socket.emit('messageFromClient', {message : 'Hello Client buddy'})
+            adminSocket.emit('messageFromAdminHome', {messageFromAdminButInsideHome : 'Hello from Home But Inside Admin'})
+        })
+        adminSocket.on('connect', () => {
+            //console.log('Admin has connected'); 
+            adminSocket.emit('adminClient', {message : 'Hello Admin from client'})
+            socket.emit('messageFromHomeAdmin', {messageFromHomeButInsideAdmin : 'Hello from Admin But Inside Home'})
+            // adminSocket.on('apichange', (data) => {   
+            //     console.log('data -> Admin API data'); 
+            //     console.log(data); 
+            // })
+            // adminSocket.on('fromHome', (data) => {   
+            //     console.log('data -> Admin data'); 
+            //     console.log(data); 
+            // })
+        })
+        adminSocket.on('onAdmin', (data) => {   
+            // console.log('data -> Admin data'); 
+            // console.log(data); 
+        })
+        // adminSocket.on('apichange', (data) => {   
+        //     console.log('data -> Admin API data'); 
+        //     console.log(data); 
+        // })
+        adminSocket.on('fromHome', (data) => {   
+            //console.log('data -> Admin data'); 
+            // console.log(data); 
+        })
+        adminSocket.on('adminRoom', (data) => {   
+            //console.log('data -> Admin data'); 
+            // console.log(data); 
+        })
+        socket.on('nameSpaces',(data) => {
+            document.querySelector('.nameSpaces').innerHTML = ""; 
+            data.map(ns => {
+                document.querySelector('.nameSpaces').innerHTML += `<img class="nameSpace" src=${ns.image} height="60px" width="60px" ns=${ns.endpoint}><span>${ns.name}</span></img>`; 
+                if(!nameSpaceArray[ns.id]) {
+                    nameSpaceArray[ns.id] = io(`http://localhost:8001${ns.endpoint}`); 
+                }
+                // const thisNs = io(`http://localhost:8001${ns.endpoint}`); 
+                if(!nameSpaceAPIReloadedChange[ns.id]) {
+                    nameSpaceArray[ns.id].on('apichange', (data) => {   
+                        console.log('data -> Admin API data'); 
+                        console.log(data); 
+                    })
+                    nameSpaceAPIReloadedChange[ns.id] = true; 
+                }
+                if(!nameSpaceRooms[ns.id]) {
+                    nameSpaceArray[ns.id].on('backFromServer', (data) => {   
+                        console.log('data -> '); 
+                        console.log(data); 
+                    })
+                    nameSpaceArray[ns.id].on('sentMessageHistory', (data) => {   
+                        console.log('message -> '); 
+                        console.log(data); 
+                    })
+                    nameSpaceRooms[ns.id] = true; 
+                }
+                
+            })
+            // document.querySelector('#nameSpace').addEventListener('click', element => {
+            //     //console.log(element); 
+            // })
+            // data.map(obj => {
+            //     const sock = io(`http://localhost:8001${obj.endpoint}`); 
+            //     sock.on('connect', () => {
+            //         //console.log(`${obj.endpoint} has connected`); 
+            //     })
+            // })
+            Array.from(document.getElementsByClassName('nameSpace')).forEach(element => {
+                //console.log(element); 
+                element.addEventListener('click', el => {
+                    const ns = element.getAttribute('ns'); 
+                    //console.log(ns); 
+                    const obj = data.find(row => row.endpoint === ns); 
+                    // const sock = io(`http://localhost:8001${obj.endpoint}`); 
+                    // sock.on('connect', () => {
+                    //     //console.log(`${obj.endpoint} has connected`); 
+                    // })
+                    document.querySelector('.rooms').innerHTML = "";
+                    document.querySelector('.rooms').innerHTML += `<h1>${obj.name}</h1><h3>${obj.endpoint}</h3>`;
+                    obj.rooms.map(room => {
+                        document.querySelector('.rooms').innerHTML += `<li class="room" namespaceId=${room.nameId}>${(room.privateRoom ? 'lock ':'globe ')+room.title}</li>`;
+                    })
+                    //console.log(obj); 
+                    Array.from(document.getElementsByClassName('room')).forEach(elem => {
+                        elem.addEventListener('click', e=>{
+                            const namespId = elem.getAttribute('namespaceId'); 
+                            console.log(namespId); 
+                            console.log(e.target.innerText); 
+                            nameSpaceArray[namespId].emit('roomTriggered_joinRoom',{data : namespId, title : e.target.innerText},(ackStatus) => {
+                                console.log(ackStatus)
+                                document.querySelector('.roomHeading').innerHTML = `<h2>${ackStatus.title} <span>${ackStatus.numUsers}</span></h2>`
+                            })
+                            document.querySelector("#form-submit").addEventListener('submit', (event)=> {
+                                event.preventDefault(); 
+                                const newMessage = document.querySelector('#name').value
+                                nameSpaceArray[namespId].emit('messageFromUser', {text : newMessage, date : Date.now()})
+                                //console.log(newMessage); 
+                            })
+                            // socket.on('backFromServer',(data) => {
+                            //     // document.querySelector('#message').innerHTML += `<li>${data.text}</li>`
+                            // })
+
+                        })
+                    })
+                })
+            })
+            // console.log()
+            
+            //console.log(data); 
+        })
+        // socket.io.on('reconnect',(data) => {
+        //     //console.log('reconnect event'); 
+        //     //console.log(data); 
+        // })
+        // document.querySelector("#form-submit").addEventListener('submit', (event)=> {
+        //     event.preventDefault(); 
+        //     const newMessage = document.querySelector('#name').value
+        //     socket.emit('messageFromUser', {text : newMessage})
+        //     //console.log(newMessage); 
+        // })
+        // socket.on('backFromServer',(data) => {
+        //     document.querySelector('#message').innerHTML += `<li>${data.text}</li>`
+        // })
+    
+    </script>
