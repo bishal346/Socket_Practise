@@ -1,0 +1,38 @@
+<div>
+<h1>Chat App</h1>
+<div>
+    <form id="form-submit">
+        <label >Message</label>
+        <input type="text" id="name"></input>
+        <input type="submit"></input>
+    </form>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<ul id="message">
+
+</ul>
+</div>
+
+<script>
+    const socket = io('http://localhost:8000'); 
+    socket.on('connect', () => {
+        socket.emit('messageFromClient', {message : 'Hello Client buddy'})
+    })
+    socket.on('messageFromServer',(data) => {
+        console.log(data); 
+    })
+    socket.io.on('reconnect',(data) => {
+        console.log('reconnect event'); 
+        console.log(data); 
+    })
+    document.querySelector("#form-submit").addEventListener('submit', (event)=> {
+        event.preventDefault(); 
+        const newMessage = document.querySelector('#name').value
+        socket.emit('messageFromUser', {text : newMessage})
+        console.log(newMessage); 
+    })
+    socket.on('backFromServer',(data) => {
+        document.querySelector('#message').innerHTML += `<li>${data.text}</li>`
+    })
+
+</script>
